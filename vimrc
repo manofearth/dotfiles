@@ -11,9 +11,7 @@ set shiftwidth=4
 set tabstop=4
 set expandtab
 syntax on
-filetype on
-filetype plugin on
-filetype indent on
+filetype plugin indent on
 
 let mapleader="\<space>"
 let maplocalleader="\\"
@@ -29,6 +27,8 @@ set directory=~/.vimswp
 set keymap=russian-jcukenwin
 set iminsert=0
 set imsearch=0
+
+set fileencodings=utf-8,cp1251
 
 set background=dark
 
@@ -50,7 +50,11 @@ augroup END
 
 " Statusline {{{
 set laststatus=2 "always visible
-set statusline=%f
-set statusline+=%=
-set statusline+=%y
+set statusline=%f " file path
+set statusline+=%= " right align
+set statusline+=%k " keymap name
+set statusline+=\  " space as separator
+set statusline+=%{&fileencoding} " file encoding
+set statusline+=\  " space as separator
+set statusline+=%y " filetype
 " }}}
