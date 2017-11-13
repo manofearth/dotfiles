@@ -29,11 +29,12 @@ function jupyter {
     sleep 5
   else
     echo "creating jupyter"
-    docker run -it \
-      -v $HOME/Documents/jupyter:/home/jupyter \
+    nohup docker run \
+      -v $HOME/Documents/jupyter:/home/jupyter/notebooks \
       -p 8888:8888 \
       --name jupyter \
       manofearth/jupyter &
+    sleep 5
   fi
   google-chrome http://localhost:8888
 }
