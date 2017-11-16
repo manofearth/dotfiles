@@ -20,7 +20,7 @@ HISTSIZE=1000
 HISTFILESIZE=2000
 
 # remove some command to be recorder to history
-HISTIGNORE='ls:ll:l:la:history'
+HISTIGNORE='ls:ll:l:la:history:history '
 
 # log timestamps to history
 HISTTIMEFORMAT='%F %T ' 
