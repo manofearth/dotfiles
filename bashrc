@@ -36,6 +36,10 @@ shopt -s checkwinsize
 # match all files and zero or more directories and subdirectories.
 #shopt -s globstar
 
+# make C-w delete back word to the "/", instead of last whitespace
+stty werase undef # disable handling C-w by terminal driver
+bind '\C-w:unix-filename-rubout' # handle C-w by readline
+
 # make less more friendly for non-text input files, see lesspipe(1)
 [ -x /usr/bin/lesspipe ] && eval "$(SHELL=/bin/sh lesspipe)"
 
