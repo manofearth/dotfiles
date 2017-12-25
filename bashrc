@@ -130,8 +130,8 @@ if ! shopt -oq posix; then
 fi
 
 # make vim default editor
-export VISUAL=vi
-export EDITOR=vi
+export VISUAL=vim
+export EDITOR=$VISUAL
 
 if [ -f ~/.bashrc_local ]; then
     . ~/.bashrc_local
