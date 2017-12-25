@@ -3,7 +3,12 @@ if v:version < 800
 endif
 
 " Basic {{{
-set relativenumber
+if exists('+relativenumber')
+    set relativenumber
+else
+    set number
+endif
+
 set shiftround
 set incsearch
 set showcmd
