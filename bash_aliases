@@ -1,6 +1,3 @@
-alias dcompose="docker-compose"
-alias dcud="docker-compose up -d"
-
 function haskell-run-here {
 	docker run --name haskell -it --rm -v `pwd`:/usr/src/ -w /usr/src haskell bash
 }
