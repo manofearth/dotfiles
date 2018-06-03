@@ -12,11 +12,12 @@ endif
 set shiftround
 set incsearch
 set showcmd
-set shiftwidth=4
-set tabstop=4
+set shiftwidth=2
+set tabstop=2
 set expandtab
 syntax on
 filetype plugin indent on
+set autoindent
 
 let mapleader="\<space>"
 let maplocalleader="\\"
@@ -44,6 +45,8 @@ set completeopt-=preview " disable split with documentation on autocomplete
 " fast way to edit and reload vimrc:
 nnoremap <leader>ev :vsplit $MYVIMRC<cr>
 nnoremap <leader>sv :source $MYVIMRC<cr>
+nnoremap <leader>rw :%s/\<<C-r><C-w>\>//g<Left><Left>
+vnoremap <C-r> "hy:%s/<C-r>h//gc<Left><Left><Left>
 " }}}
 
 " Vimscript file settings {{{
