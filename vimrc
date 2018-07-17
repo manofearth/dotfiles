@@ -39,6 +39,8 @@ set fileencodings=utf-8,utf-16le,cp1251
 set background=dark
 
 set completeopt-=preview " disable split with documentation on autocomplete
+
+"set clipboard=unnamedplus " yank to system clipboard (isn't convinient)
 " }}}
 
 " Mappings {{{
