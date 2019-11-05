@@ -1,5 +1,7 @@
 bindkey -e # emacs-like controls
 
+PS1="[%h] %B%F{blue}%~ %F{white}%#%f%b "
+
 zstyle ':completion:*' completer _expand _complete _ignored
 zstyle :compinstall filename '~/.zshrc'
 
@@ -27,18 +29,31 @@ setopt COMPLETE_ALIASES
 
 # Enable Ctrl-x-e to edit command line
 autoload -U edit-command-line
+
 # Emacs style
 zle -N edit-command-line
 bindkey '^xe' edit-command-line
 bindkey '^x^e' edit-command-line
 
+# Ctrl+W to delete word until slash (instead space), taken from https://unix.stackexchange.com/questions/250690/how-to-configure-ctrlw-as-delete-word-in-zsh
+my-backward-delete-word() {
+    local WORDCHARS=${WORDCHARS/\//}
+    zle backward-delete-word
+}
+zle -N my-backward-delete-word
+bindkey '^w' my-backward-delete-word
+
+# Aliases
 alias grep='grep --color'
 alias egrep='egrep --color'
 alias ls='ls --color=auto'
 alias ll='ls -alh'
-alias tree='tree -L 2'
+alias tree='tree -L 2 -a'
 if [[ -f ~/.aliases ]]; then
   source ~/.aliases
 fi
 
-PS1="[%h] %B%F{blue}%~ %F{white}%#%f%b "
+# NVM
+#export NVM_NO_USE=true
+#source ~/.zsh-nvm/zsh-nvm.plugin.zsh
+

@@ -40,7 +40,7 @@ set background=dark
 
 set completeopt-=preview " disable split with documentation on autocomplete
 
-"set clipboard=unnamedplus " yank to system clipboard (isn't convinient)
+set clipboard=unnamedplus " yank to system clipboard
 " }}}
 
 " Mappings {{{
@@ -48,7 +48,22 @@ set completeopt-=preview " disable split with documentation on autocomplete
 nnoremap <leader>ev :vsplit $MYVIMRC<cr>
 nnoremap <leader>sv :source $MYVIMRC<cr>
 nnoremap <leader>rw :%s/\<<C-r><C-w>\>//g<Left><Left>
+nnoremap <leader>fs :w<cr>
 vnoremap <C-r> "hy:%s/<C-r>h//gc<Left><Left><Left>
+" }}}
+
+" Visualizing Insert Mode {{{
+" taken from https://stackoverflow.com/a/42118416
+"let &t_SI = "\e[6 q"
+"let &t_EI = "\e[2 q"
+
+" optional reset cursor on start:
+"augroup reset_cursor_on_start
+"  autocmd!
+"  autocmd VimEnter * silent !echo -ne "\e[2 q"
+"augroup END
+
+" another possible solution is https://stackoverflow.com/a/6489348
 " }}}
 
 " Vimscript file settings {{{
