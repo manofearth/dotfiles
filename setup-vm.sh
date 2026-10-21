@@ -21,16 +21,31 @@ has()  { command -v "$1" >/dev/null 2>&1; }
 
 # version_ge A B: true if A >= B
 version_ge() { [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]; }
-tool_version() { "$1" --version 2>/dev/null | grep -oE '[0-9]+(\.[0-9]+)+' | head -n1; }
+# tool_version CMD: "1.2.3" from `CMD --version` (or `CMD -V` for tmux)
+tool_version() {
+  { "$1" --version 2>/dev/null || "$1" -V 2>/dev/null; } | grep -oE '[0-9]+(\.[0-9]+)+' | head -n1
+}
 # tool_ok CMD MIN: CMD is in PATH and its version is >= MIN
 tool_ok() { local ver; ver=$(tool_version "$1") && [ -n "$ver" ] && version_ge "$ver" "$2"; }
 
+BLOCK_BEGIN='# >>> setup-vm >>>'
+BLOCK_END='# <<< setup-vm <<<'
+
 # write_block FILE: replace this script's marked block in FILE with stdin
 write_block() {
-  local file=$1 begin='# >>> setup-vm >>>' end='# <<< setup-vm <<<'
+  local file=$1
   touch "$file"
-  sed -i "/^$begin\$/,/^$end\$/d" "$file"
-  { echo "$begin"; cat; echo "$end"; } >>"$file"
+  sed -i "/^$BLOCK_BEGIN\$/,/^$BLOCK_END\$/d" "$file"
+  { echo "$BLOCK_BEGIN"; cat; echo "$BLOCK_END"; } >>"$file"
+}
+
+# grep_outside_block FILE REGEX: "LINENO: line" for matches outside our block
+grep_outside_block() {
+  awk -v b="$BLOCK_BEGIN" -v e="$BLOCK_END" -v re="$2" '
+    $0 == b { inside = 1 }
+    !inside && $0 ~ re { printf "      %d: %s\n", NR, $0 }
+    $0 == e { inside = 0 }
+  ' "$1"
 }
 
 has apt-get || die "only Debian/Ubuntu are supported"
@@ -109,15 +124,13 @@ install_zoxide_upstream() {
 # Install only what is missing: `apt-get install` would also upgrade
 # packages that are already there.
 install_packages() {
-  local missing=() p
+  local present=() missing=() p
   for p in curl ca-certificates vim tmux bash-completion; do
-    is_installed "$p" || missing+=("$p")
+    if is_installed "$p"; then present+=("$p"); else missing+=("$p"); fi
   done
-  if [ ${#missing[@]} -eq 0 ]; then
-    log "Base packages already installed"
-    return
-  fi
-  log "Installing: ${missing[*]}"
+  [ ${#present[@]} -gt 0 ] && log "Already installed: ${present[*]}"
+  [ ${#missing[@]} -eq 0 ] && return
+  log "Not installed, installing from apt: ${missing[*]}"
   apt_update
   apt_install "${missing[@]}"
 }
@@ -125,19 +138,30 @@ install_packages() {
 # ensure_tool CMD MIN UPSTREAM_INSTALLER: get CMD >= MIN from apt if the repo
 # has it, else purge the outdated package and install from upstream
 ensure_tool() {
-  local cmd=$1 min=$2 installer=$3 cand
+  local cmd=$1 min=$2 installer=$3 cur cand
+  cur=$(tool_version "$cmd" || true)
   if tool_ok "$cmd" "$min"; then
-    log "$cmd $(tool_version "$cmd") is OK (>= $min)"
+    log "$cmd $cur is already installed ($(command -v "$cmd")), >= $min"
     return
+  fi
+  if [ -n "$cur" ]; then
+    warn "$cmd $cur ($(command -v "$cmd")) is older than $min"
+  else
+    log "$cmd is not installed"
   fi
   apt_update
   cand=$(apt_candidate "$cmd")
   if [ -n "$cand" ] && version_ge "$cand" "$min"; then
-    log "Installing $cmd $cand from apt"
+    log "apt has $cmd $cand (>= $min), installing from apt"
     apt_install "$cmd"
   else
+    if [ -n "$cand" ]; then
+      log "apt has $cmd $cand (< $min), using GitHub release"
+    else
+      log "apt has no $cmd package, using GitHub release"
+    fi
     if is_installed "$cmd"; then
-      warn "removing outdated $cmd package ($(tool_version "$cmd" || echo '?') < $min)"
+      warn "removing outdated $cmd package"
       $SUDO apt-get purge -y -qq "$cmd"
     fi
     "$installer"
@@ -155,7 +179,13 @@ set_default_editor() {
     return
   fi
   log "Making vim the default editor"
-  $SUDO update-alternatives --set editor "$vim" >/dev/null
+  # Output only on failure: minimized images lack man pages, which makes
+  # update-alternatives print harmless "skip creation of ...man..." warnings.
+  local out
+  if ! out=$($SUDO update-alternatives --set editor "$vim" 2>&1); then
+    printf '%s\n' "$out" >&2
+    die "update-alternatives failed"
+  fi
 }
 
 configure_bash() {
@@ -207,6 +237,20 @@ set -sg escape-time 10
 EOF
 }
 
+# Older setups (distro docs, tool installers, hand edits) may also load fzf/zoxide;
+# that duplicates our block, and breaks once the package is removed. Only report it.
+check_shell_rc() {
+  local f found
+  for f in "$HOME/.bashrc" "$HOME/.bash_aliases" "$HOME/.bash_profile" "$HOME/.profile"; do
+    [ -f "$f" ] || continue
+    found=$(grep_outside_block "$f" 'fzf|zoxide')
+    if [ -n "$found" ]; then
+      warn "$f mentions fzf/zoxide outside the setup-vm block; review and remove if redundant:"
+      printf '%s\n' "$found" >&2
+    fi
+  done
+}
+
 summary() {
   log "Done:"
   local t
@@ -222,4 +266,5 @@ ensure_tool zoxide "$ZOXIDE_MIN_VERSION" install_zoxide_upstream
 set_default_editor
 configure_bash
 configure_tmux
+check_shell_rc
 summary
