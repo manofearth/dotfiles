@@ -1,0 +1,6 @@
+{
+    // Windows PowerShell 5.1 читает .ps1 без BOM как ANSI и ломает кириллицу
+    "[powershell]": {
+        "files.encoding": "utf8bom"
+    }
+}
