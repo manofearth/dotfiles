@@ -33,12 +33,48 @@ BLOCK_BEGIN='# >>> setup-vm >>>'
 BLOCK_END='# <<< setup-vm <<<'
 
 # write_block FILE: replace this script's marked block in FILE with stdin
-write_block() {
-  local file=$1
-  touch "$file"
-  sed -i "/^$BLOCK_BEGIN\$/,/^$BLOCK_END\$/d" "$file"
-  { echo "$BLOCK_BEGIN"; cat; echo "$BLOCK_END"; } >>"$file"
-}
+write_block() (
+  local file source tmp
+  # Resolve relative/chained symlinks and replace their target, not the link.
+  file=$(readlink -f -- "$1") || die "cannot resolve config path: $1"
+  source=$file
+  if [ -e "$file" ]; then
+    [ -f "$file" ] || die "not a regular config file: $1"
+  else
+    source=/dev/null
+  fi
+
+  # Keep the temporary file on the same filesystem for an atomic rename.
+  tmp=$(mktemp -- "${file}.setup-vm.XXXXXX") || die "cannot create temporary file for $1"
+  trap 'rm -f -- "$tmp"' EXIT
+  trap 'exit 1' HUP INT TERM
+  if ! awk -v b="$BLOCK_BEGIN" -v e="$BLOCK_END" '
+    FILENAME != "-" {
+      if ($0 == b) { if (inside) invalid = 1; inside = 1; next }
+      if ($0 == e) { if (!inside) invalid = 1; inside = 0; next }
+      if (!inside) print
+      next
+    }
+    {
+      if (!started) { print b; started = 1 }
+      print
+    }
+    END {
+      if (inside || invalid) exit 1
+      if (!started) print b
+      print e
+    }
+  ' "$source" - >"$tmp"; then
+    die "cannot update $1: invalid setup-vm markers or read/write error; original file unchanged"
+  fi
+
+  if [ -e "$file" ]; then
+    cmp -s -- "$file" "$tmp" && return
+    cp --attributes-only --preserve=mode,ownership -- "$file" "$tmp" \
+      || die "cannot preserve config permissions: $1"
+  fi
+  mv -f -- "$tmp" "$file" || die "cannot replace config file: $1"
+)
 
 # grep_outside_block FILE REGEX: "LINENO: line" for matches outside our block
 grep_outside_block() {
