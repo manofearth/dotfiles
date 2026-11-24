@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Set up a Debian/Ubuntu VM: vim (default editor), tmux with vi keys, fzf, zoxide,
-# bash history tuned for fzf. Edits ~/.bashrc and ~/.tmux.conf in place
+# bash history tuned for fzf, Ctrl-P/N prefix search. Edits ~/.bashrc,
+# ~/.inputrc and ~/.tmux.conf in place
 # (inside marked blocks), so this repo can be deleted afterwards. Safe to re-run.
 #
 # fzf/zoxide come from apt when the repo version is recent enough; otherwise
@@ -212,6 +213,34 @@ command -v zoxide >/dev/null && eval "$(zoxide init bash)"
 EOF
 }
 
+configure_readline() {
+  local file=${INPUTRC:-"$HOME/.inputrc"} key direction found
+  local bindings=()
+  log "Updating $file"
+  # A user inputrc replaces the system default, so keep loading it when
+  # creating a new file.
+  if [ ! -e "$file" ]; then
+    printf '$include /etc/inputrc\n' >"$file"
+  fi
+  for key in p n; do
+    # awk -v consumes one level of escaping before interpreting the regex.
+    # Recognize both quoted Readline notation and the Control-p/n spelling.
+    found=$(grep_outside_block "$file" \
+      '^[[:space:]]*("\\\\(C-|Control-)['"$key${key^^}"']"|Control-['"$key${key^^}"'])[[:space:]]*:')
+    if [ -n "$found" ]; then
+      warn "$file already binds Ctrl-$key outside the setup-vm block; keeping the existing binding:"
+      printf '%s\n' "$found" >&2
+      continue
+    fi
+    case $key in
+      p) direction=backward ;;
+      n) direction=forward ;;
+    esac
+    bindings+=("\"\\C-$key\": history-search-$direction")
+  done
+  printf '%s\n' "${bindings[@]}" | write_block "$file"
+}
+
 configure_tmux() {
   log "Updating ~/.tmux.conf"
   write_block "$HOME/.tmux.conf" <<'EOF'
@@ -265,6 +294,7 @@ ensure_tool fzf    "$FZF_MIN_VERSION"    install_fzf_upstream
 ensure_tool zoxide "$ZOXIDE_MIN_VERSION" install_zoxide_upstream
 set_default_editor
 configure_bash
+configure_readline
 configure_tmux
 check_shell_rc
 summary
